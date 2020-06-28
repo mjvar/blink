@@ -1,22 +1,14 @@
 import os
 
-from flask import Flask, render_template
-from . import settings, controllers, models
-from .extensions import db
+from flask import Flask, render_template, jsonify, request
+import settings
+from flask_sqlalchemy import SQLAlchemy
+from extensions import db
 
-project_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.dirname(os.path.abspath(__file__))   
 
-def create_app(config_object=settings):
-    # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
-    app.config.from_object(config_object)
 
-    register_extensions(app)
-    register_blueprints(app)
-    register_errorhandlers(app)
-    return app
-
-def register_extensions(app):
+def register_extensions(db, app):
     """Register Flask extensions."""
     db.init_app(app)
 
@@ -46,3 +38,50 @@ def register_errorhandlers(app):
         return render_template('500.html'), 500
 
     return None
+
+def register_requests(app):
+    @app.route('/', methods=['GET'])
+    def hello_world():
+        return render_template('home/index.html')
+
+    data_list = [1, 2]
+
+    @app.route('/eye_data', methods=['GET'])
+    def return_db():
+        return db
+
+    @app.route('/eye_data', methods=['POST'])
+    def addEyeData():
+        timestamp=request.form.get('timestamp')
+        score=request.form.get('score')
+        try:
+            eye_data=models.Eye_Data(timestamp,score)
+            db.session.add(eye_data)
+            db.session.commit()
+            return "Eye data added at {}. data id={}".format(timestamp,eye_data.id)
+        except Exception as e:
+            return(str(e))
+
+    @app.route('/face_data', methods=['POST'])
+    def addFaceData():
+        timestamp=request.form.get('timestamp')
+        try:
+            face_data=models.Face_Data(timestamp)
+            db.session.add(face_data)
+            db.session.commit()
+            return "Face data added at {}. data id={}".format(timestamp,face_data.id)
+        except Exception as e:
+            return(str(e))
+
+
+# create and configure the app
+app = Flask(__name__, instance_relative_config=True)
+app.config.from_object(settings)
+import models
+
+register_extensions(db,app)
+# register_blueprints(app)
+register_errorhandlers(app)
+register_requests(app)
+
+
